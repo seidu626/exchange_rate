@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package exchange_rate;
+
+option go_package = "./proto;exchange_rate";
+
+import "google/protobuf/wrappers.proto";
+
+
+service ExchangeRates {// GetRate returns the exchange rate for the two provided currency codes
+  rpc GetRate(CurrencyRateRequest) returns (CurrencyRateResponse);
+  // ListCurrencies returns a list of all currencies
+  rpc ListCurrencies(ListCurrencyRequest) returns (ListCurrencyResponse);
+  // ListRates returns the exchange rates of other currencies based on the base currency
+  rpc ListRates(ListRatesRequest) returns (ListRatesResponse);}
+
+message Currency {string name = 1;
+  string description = 2;}
+
+message CurrencyRate {string destination = 2;
+  float rate = 3;
+  float inverse = 4;
+  string date = 5;}
+
+// BaseRateRequest get base currency rates
+message ListRatesRequest {string base = 1;}
+
+message ListRatesResponse  {
+  string base = 1;
+  string date = 2;
+  repeated CurrencyRate data = 3;}
+
+// RateRequest convert from base to destination
+message CurrencyRateRequest {string base = 1;
+  string destination = 2;}
+
+message CurrencyRateResponse  {CurrencyRate rate = 1;}
+
+// RatesRequest g
+message ListCurrencyRequest {string base = 1;
+  google.protobuf.Int32Value pageIndex = 2;
+  google.protobuf.Int32Value pageSize = 3;}
+
+message ListCurrencyResponse {google.protobuf.Int32Value pageIndex = 1;
+  google.protobuf.Int32Value pageSize = 2;
+  google.protobuf.Int32Value total = 3;
+  repeated Currency data = 4;}
