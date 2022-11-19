@@ -42,13 +42,11 @@ type CurrencyResponse struct {
 }
 
 type ListCurrencyRequest struct {
-	Base      string
 	PageIndex int32
 	PageSize  int32
 }
 
 type ListCurrencyResponse struct {
-	Base      string
 	PageIndex int32
 	PageSize  int32
 	Total     int32
@@ -97,7 +95,7 @@ func (_this *CurrencyService) ServerAddress(base string) string {
 }
 
 func (_this *CurrencyService) ConversionAddress(base string, destination string) string {
-	_this.conversionAddr = fmt.Sprintf("https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/%s/%s.json", base, destination)
+	_this.conversionAddr = fmt.Sprintf("https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/%s/%s.min.json", base, destination)
 	return _this.conversionAddr
 }
 

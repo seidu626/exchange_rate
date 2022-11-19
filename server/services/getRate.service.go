@@ -32,7 +32,7 @@ func (_this *CurrencyService) GetRate(base string, destination string) (*Rate, e
 	_this.time = dateStandard
 	rate := (*response.rates)[destination]
 	if rate == 0.0 {
-		return nil, fmt.Errorf("invalid rate %f", rate)
+		return nil, fmt.Errorf("invalid rateHandler %f", rate)
 	}
 
 	return &Rate{Rate: rate, Destination: destination, Date: _this.GetDate(), Inverse: 1 / rate}, nil

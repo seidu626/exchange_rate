@@ -6,6 +6,7 @@ package exchange_rate
 import (
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
+	_ "google.golang.org/protobuf/types/known/anypb"
 	_ "google.golang.org/protobuf/types/known/wrapperspb"
 	math "math"
 )
@@ -48,6 +49,8 @@ type ExchangeRatesService interface {
 	ListCurrencies(ctx context.Context, in *ListCurrencyRequest, opts ...client.CallOption) (*ListCurrencyResponse, error)
 	// ListRates returns the exchange rates of other currencies based on the base currency
 	ListRates(ctx context.Context, in *ListRatesRequest, opts ...client.CallOption) (*ListRatesResponse, error)
+	// Subscription bidirectional streaming service to get updated rates
+	Subscription(ctx context.Context, opts ...client.CallOption) (ExchangeRates_SubscriptionService, error)
 }
 
 type exchangeRatesService struct {
@@ -92,6 +95,57 @@ func (c *exchangeRatesService) ListRates(ctx context.Context, in *ListRatesReque
 	return out, nil
 }
 
+func (c *exchangeRatesService) Subscription(ctx context.Context, opts ...client.CallOption) (ExchangeRates_SubscriptionService, error) {
+	req := c.c.NewRequest(c.name, "ExchangeRates.Subscription", &ListRatesRequest{})
+	stream, err := c.c.Stream(ctx, req, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &exchangeRatesServiceSubscription{stream}, nil
+}
+
+type ExchangeRates_SubscriptionService interface {
+	Context() context.Context
+	SendMsg(interface{}) error
+	RecvMsg(interface{}) error
+	Close() error
+	Send(*ListRatesRequest) error
+	Recv() (*ListRatesResponse, error)
+}
+
+type exchangeRatesServiceSubscription struct {
+	stream client.Stream
+}
+
+func (x *exchangeRatesServiceSubscription) Close() error {
+	return x.stream.Close()
+}
+
+func (x *exchangeRatesServiceSubscription) Context() context.Context {
+	return x.stream.Context()
+}
+
+func (x *exchangeRatesServiceSubscription) SendMsg(m interface{}) error {
+	return x.stream.Send(m)
+}
+
+func (x *exchangeRatesServiceSubscription) RecvMsg(m interface{}) error {
+	return x.stream.Recv(m)
+}
+
+func (x *exchangeRatesServiceSubscription) Send(m *ListRatesRequest) error {
+	return x.stream.Send(m)
+}
+
+func (x *exchangeRatesServiceSubscription) Recv() (*ListRatesResponse, error) {
+	m := new(ListRatesResponse)
+	err := x.stream.Recv(m)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // Server API for ExchangeRates service
 
 type ExchangeRatesHandler interface {
@@ -100,6 +154,8 @@ type ExchangeRatesHandler interface {
 	ListCurrencies(context.Context, *ListCurrencyRequest, *ListCurrencyResponse) error
 	// ListRates returns the exchange rates of other currencies based on the base currency
 	ListRates(context.Context, *ListRatesRequest, *ListRatesResponse) error
+	// Subscription bidirectional streaming service to get updated rates
+	Subscription(context.Context, ExchangeRates_SubscriptionStream) error
 }
 
 func RegisterExchangeRatesHandler(s server.Server, hdlr ExchangeRatesHandler, opts ...server.HandlerOption) error {
@@ -107,6 +163,7 @@ func RegisterExchangeRatesHandler(s server.Server, hdlr ExchangeRatesHandler, op
 		GetRate(ctx context.Context, in *CurrencyRateRequest, out *CurrencyRateResponse) error
 		ListCurrencies(ctx context.Context, in *ListCurrencyRequest, out *ListCurrencyResponse) error
 		ListRates(ctx context.Context, in *ListRatesRequest, out *ListRatesResponse) error
+		Subscription(ctx context.Context, stream server.Stream) error
 	}
 	type ExchangeRates struct {
 		exchangeRates
@@ -129,4 +186,49 @@ func (h *exchangeRatesHandler) ListCurrencies(ctx context.Context, in *ListCurre
 
 func (h *exchangeRatesHandler) ListRates(ctx context.Context, in *ListRatesRequest, out *ListRatesResponse) error {
 	return h.ExchangeRatesHandler.ListRates(ctx, in, out)
+}
+
+func (h *exchangeRatesHandler) Subscription(ctx context.Context, stream server.Stream) error {
+	return h.ExchangeRatesHandler.Subscription(ctx, &exchangeRatesSubscriptionStream{stream})
+}
+
+type ExchangeRates_SubscriptionStream interface {
+	Context() context.Context
+	SendMsg(interface{}) error
+	RecvMsg(interface{}) error
+	Close() error
+	Send(*ListRatesResponse) error
+	Recv() (*ListRatesRequest, error)
+}
+
+type exchangeRatesSubscriptionStream struct {
+	stream server.Stream
+}
+
+func (x *exchangeRatesSubscriptionStream) Close() error {
+	return x.stream.Close()
+}
+
+func (x *exchangeRatesSubscriptionStream) Context() context.Context {
+	return x.stream.Context()
+}
+
+func (x *exchangeRatesSubscriptionStream) SendMsg(m interface{}) error {
+	return x.stream.Send(m)
+}
+
+func (x *exchangeRatesSubscriptionStream) RecvMsg(m interface{}) error {
+	return x.stream.Recv(m)
+}
+
+func (x *exchangeRatesSubscriptionStream) Send(m *ListRatesResponse) error {
+	return x.stream.Send(m)
+}
+
+func (x *exchangeRatesSubscriptionStream) Recv() (*ListRatesRequest, error) {
+	m := new(ListRatesRequest)
+	if err := x.stream.Recv(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }

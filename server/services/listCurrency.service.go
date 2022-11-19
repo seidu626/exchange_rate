@@ -9,7 +9,6 @@ import (
 
 // ListCurrencies List available currencies
 func (_this *CurrencyService) ListCurrencies(request *ListCurrencyRequest) (*ListCurrencyResponse, error) {
-	_this.base = request.Base
 	serverAddr := _this.listServerAddr
 	_this.logger.Info("Calling List Currency Service:", zap.String("Server: ", serverAddr))
 	resp, err := http.DefaultClient.Get(serverAddr)

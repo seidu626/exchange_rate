@@ -27,6 +27,8 @@ type ExchangeRatesClient interface {
 	ListCurrencies(ctx context.Context, in *ListCurrencyRequest, opts ...grpc.CallOption) (*ListCurrencyResponse, error)
 	// ListRates returns the exchange rates of other currencies based on the base currency
 	ListRates(ctx context.Context, in *ListRatesRequest, opts ...grpc.CallOption) (*ListRatesResponse, error)
+	// Subscription bidirectional streaming service to get updated rates
+	Subscription(ctx context.Context, opts ...grpc.CallOption) (ExchangeRates_SubscriptionClient, error)
 }
 
 type exchangeRatesClient struct {
@@ -64,6 +66,37 @@ func (c *exchangeRatesClient) ListRates(ctx context.Context, in *ListRatesReques
 	return out, nil
 }
 
+func (c *exchangeRatesClient) Subscription(ctx context.Context, opts ...grpc.CallOption) (ExchangeRates_SubscriptionClient, error) {
+	stream, err := c.cc.NewStream(ctx, &ExchangeRates_ServiceDesc.Streams[0], "/exchange_rate.ExchangeRates/Subscription", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &exchangeRatesSubscriptionClient{stream}
+	return x, nil
+}
+
+type ExchangeRates_SubscriptionClient interface {
+	Send(*ListRatesRequest) error
+	Recv() (*ListRatesResponse, error)
+	grpc.ClientStream
+}
+
+type exchangeRatesSubscriptionClient struct {
+	grpc.ClientStream
+}
+
+func (x *exchangeRatesSubscriptionClient) Send(m *ListRatesRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *exchangeRatesSubscriptionClient) Recv() (*ListRatesResponse, error) {
+	m := new(ListRatesResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // ExchangeRatesServer is the server API for ExchangeRates service.
 // All implementations must embed UnimplementedExchangeRatesServer
 // for forward compatibility
@@ -73,6 +106,8 @@ type ExchangeRatesServer interface {
 	ListCurrencies(context.Context, *ListCurrencyRequest) (*ListCurrencyResponse, error)
 	// ListRates returns the exchange rates of other currencies based on the base currency
 	ListRates(context.Context, *ListRatesRequest) (*ListRatesResponse, error)
+	// Subscription bidirectional streaming service to get updated rates
+	Subscription(ExchangeRates_SubscriptionServer) error
 	mustEmbedUnimplementedExchangeRatesServer()
 }
 
@@ -88,6 +123,9 @@ func (UnimplementedExchangeRatesServer) ListCurrencies(context.Context, *ListCur
 }
 func (UnimplementedExchangeRatesServer) ListRates(context.Context, *ListRatesRequest) (*ListRatesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListRates not implemented")
+}
+func (UnimplementedExchangeRatesServer) Subscription(ExchangeRates_SubscriptionServer) error {
+	return status.Errorf(codes.Unimplemented, "method Subscription not implemented")
 }
 func (UnimplementedExchangeRatesServer) mustEmbedUnimplementedExchangeRatesServer() {}
 
@@ -156,6 +194,32 @@ func _ExchangeRates_ListRates_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ExchangeRates_Subscription_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ExchangeRatesServer).Subscription(&exchangeRatesSubscriptionServer{stream})
+}
+
+type ExchangeRates_SubscriptionServer interface {
+	Send(*ListRatesResponse) error
+	Recv() (*ListRatesRequest, error)
+	grpc.ServerStream
+}
+
+type exchangeRatesSubscriptionServer struct {
+	grpc.ServerStream
+}
+
+func (x *exchangeRatesSubscriptionServer) Send(m *ListRatesResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *exchangeRatesSubscriptionServer) Recv() (*ListRatesRequest, error) {
+	m := new(ListRatesRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // ExchangeRates_ServiceDesc is the grpc.ServiceDesc for ExchangeRates service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -176,6 +240,13 @@ var ExchangeRates_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ExchangeRates_ListRates_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Subscription",
+			Handler:       _ExchangeRates_Subscription_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "proto/exchange_rate.proto",
 }

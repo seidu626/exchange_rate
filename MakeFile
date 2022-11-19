@@ -1,3 +1,29 @@
+# Usage:
+# make        	# compile all binary
+# make clean  	# remove ALL binaries and objects
+# make release  # add git TAG and push
+GITHUB_REPO_OWNER 				:= seidu.abdulai
+GITHUB_REPO_NAME 					:= exchange_rate
+GITHUB_RELEASES_UI_URL 		:= https://github.com/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)/releases
+GITHUB_RELEASES_API_URL 	:= https://api.github.com/repos/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)/releases
+GITHUB_RELEASE_ASSET_URL	:= https://uploads.github.com/repos/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)/releases
+GITHUB_DEPLOY_API_URL			:= https://api.github.com/repos/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)/deployments
+DOCKER_REGISTRY 					:= docker.pkg.github.com
+# DOCKER_REGISTRY 					:= us.gcr.io
+DOCKER_CONTEXT_PATH 			:= $(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)
+# DOCKER_REGISTRY 					:= docker.io
+# DOCKER_CONTEXT_PATH 			:= seidu.abdulai
+GO_MICRO_VERSION 					:= latest
+
+VERSION					:= $(shell git describe --tags || echo "HEAD")
+GOPATH					:= $(shell go env GOPATH)
+CODECOV_FILE 			:= build/coverage.txt
+TIMEOUT  				:= 60s
+# don't override
+GIT_TAG					:= $(shell git describe --tags --abbrev=0 --always --match "v*")
+GIT_DIRTY 				:= $(shell git status --porcelain 2> /dev/null)
+GIT_BRANCH  			:= $(shell git rev-parse --abbrev-ref HEAD)
+
 
 GOPATH:=$(shell go env GOPATH)
 .PHONY: init
@@ -7,13 +33,18 @@ init:
 	go get -u google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	go get github.com/micro/micro/v3/cmd/protoc-gen-micro@latest
 	go get github.com/google/gnostic/cmd/protoc-gen-openapi@latest
+
+update_deps:
+	go mod verify
+	go mod tidy
+
 .PHONY: proto
 proto:
 	protoc --openapi_out=. --proto_path=. --micro_out=. --go_out=. --go-grpc_out=. proto/exchange_rate.proto
 
 docs:
 	protoc --openapi_out=. --proto_path=. --micro_out=. --go_out=. proto/exchange_rate.proto
-	@redoc-cli bundle api-exchange_rate.json
+	@redoc-cli bundle api-exchange_rate.json --options.theme.colors.primary.main=orange
 
 .PHONY: build
 build:
@@ -26,3 +57,44 @@ test:
 .PHONY: docker
 docker:
 	docker build . -t exchange_rate:latest
+
+docker_clean:
+	@echo "Cleaning dangling images..."
+	@docker images -f "dangling=true" -q  | xargs docker rmi
+	@echo "Removing microservice images..."
+	@docker images -f "label=org.label-schema.vendor=sumo" -q | xargs docker rmi
+	@echo "Pruneing images..."
+	@docker image prune -f
+
+docker_push:
+	@echo "Piblishing images with VCS_REF=$(shell git rev-parse --short HEAD)"
+	@docker images -f "label=org.label-schema.vcs-ref=$(shell git rev-parse --short HEAD)" --format {{.Repository}}:{{.Tag}} | \
+	while read -r image; do \
+		echo Now pushing $$image; \
+		docker push $$image; \
+	done;
+
+.PHONY: git
+ifeq ($(VERSION),)
+     VERSION:=$(shell git describe --tags --abbrev=0 | awk -F .   '{OFS="."; $$NF+=1; print}')
+endif
+
+#tags:
+# 	@git "checkout integration "\
+#    @echo $(VERSION) \
+#    @git tag $(VERSION) \
+#    @git push --tags
+
+tag:
+	@if [ $$(git rev-list $$(git describe --abbrev=0 --tags)..HEAD --count) -gt 0 ]; then \
+		if [ $$(git log  -n 1 --oneline $$(git describe --abbrev=0 --tags)..HEAD CHANGELOG.md | wc -l) -gt 0 ]; then \
+			git tag $$(python setup.py --version) && git push --tags || echo 'Version already released, update your version!'
+		else \
+			echo "CHANGELOG not updated since last release!"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "No commits since last release!"; \
+		exit 1;\
+	fi
+
