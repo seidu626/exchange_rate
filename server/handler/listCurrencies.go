@@ -12,6 +12,7 @@ import (
 )
 
 func (_this *ServerHandler) ListCurrencies(ctx context.Context, request *exchange_rate.ListCurrencyRequest) (*exchange_rate.ListCurrencyResponse, error) {
+	_this.logger.Info("ListCurrencies")
 	cacheKey := fmt.Sprintf("ListCurrencies_PageIndex:%v_PageSize:%v", request.PageIndex, request.PageSize)
 	currencies := &exchange_rate.ListCurrencyResponse{}
 	err := _this.cache.Get(ctx, cacheKey, currencies)

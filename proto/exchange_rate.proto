@@ -19,26 +19,41 @@ service ExchangeRates {// GetRate returns the exchange rate for the two provided
 message Currency {string name = 1;
   string description = 2;}
 
-message CurrencyRate {string destination = 2;
-  float rate = 3;
-  float inverse = 4;
-  string date = 5;}
+message CurrencyRate {
+  // target code to convert to e.g GBP
+  string destination = 1;
+  // conversion rate e.g 0.71
+  float rate = 2;
+  // inverse conversion rate e.g base/destination
+  float inverse = 3;
+  // date of rate
+  string date = 4;}
 
-// BaseRateRequest get base currency rates
+// ListRatesRequest returns the currency rates for a given code e.g USD
 message ListRatesRequest {string base = 1;}
 
-message ListRatesResponse  {string base = 1;
+message ListRatesResponse  {
+  // The base requested e.g USD
+  string base = 1;
+  // The date of the rates
   string date = 2;
+  // The rates for the given code as key-value pairs code:rate
   repeated CurrencyRate data = 3;}
 
 message StreamResponse {oneof message {ListRatesResponse rateResponse = 1;
   google.protobuf.Any error = 2;}}
 
 // RateRequest convert from base to destination
-message CurrencyRateRequest {string base = 1;
-  string destination = 2;}
+message CurrencyRateRequest {
+  // base code to convert from e.g USD
+  string base = 1;
+  // target code to convert to e.g GBP
+  string destination = 2;
+}
 
-message CurrencyRateResponse  {CurrencyRate rate = 1;}
+message CurrencyRateResponse  {
+  CurrencyRate rate = 1;
+}
 
 // RatesRequest g
 message ListCurrencyRequest {google.protobuf.Int32Value pageIndex = 1;

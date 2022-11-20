@@ -7,7 +7,9 @@ import (
 	"io"
 )
 
+// Subscription implements the gRPC bidirectional streaming method for the server
 func (_this *ServerHandler) Subscription(stream exchange_rate.ExchangeRates_SubscriptionServer) error {
+	_this.logger.Info("Subscription")
 	// handle client messages
 	for {
 		rr, err := stream.Recv() // Recv is a blocking method which returns on client data

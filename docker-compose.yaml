@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  exchange_rate:
+    container_name: exchange_rate
+    build: .
+    image: exchange_rate:latest
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - redis
+    ports:
+      - ${PORT}:${PORT}
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT}
+    links:
+      - redis
+    volumes:
+      - ./:/src
+  redis:
+    container_name: redis
+    image: redis:alpine
+    restart: always
+    env_file: .env
+    command: ["redis-server", "--bind", "redis", "--port", "6379"]
+    ports:
+      - 6379:${REDIS_PORT}
+    volumes:
+      - redis:/data
+volumes:
+  redis:
+    driver: local

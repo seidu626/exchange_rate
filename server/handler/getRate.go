@@ -10,8 +10,7 @@ import (
 )
 
 func (_this *ServerHandler) GetRate(ctx context.Context, request *exchange_rate.CurrencyRateRequest) (*exchange_rate.CurrencyRateResponse, error) {
-	_this.logger.Info("failed to fetch URL", // Structured context as strongly typed Field values.
-		zap.String("base", request.Base), zap.String("base", request.Destination), zap.Int("attempt", 3), zap.Duration("backoff", time.Second))
+	_this.logger.Info("GetRate", zap.String("base", request.Base), zap.String("base", request.Destination))
 
 	cacheKey := fmt.Sprintf("%s_%s", request.Base, request.Destination)
 	rate := &exchange_rate.CurrencyRateResponse{}

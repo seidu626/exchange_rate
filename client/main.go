@@ -38,7 +38,7 @@ func main() {
 
 	client := exchange_rate.NewExchangeRatesClient(conn)
 
-	request := &exchange_rate.RateRequest{Base: exchange_rate.Currencies_USD, Destination: exchange_rate.Currencies_GBP}
+	request := &exchange_rate.CurrencyRateRequest{Base: "usd", Destination: "ghs"}
 	rate, err := client.GetRate(context.Background(), request)
 	if err != nil {
 		logger.Fatal("An error occurred", zap.Error(err))
